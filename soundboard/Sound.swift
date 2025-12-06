@@ -19,6 +19,13 @@ struct Sound: Codable, Equatable {
         self.audioFileName = audioFileName
     }
     
+    init(id: UUID, name: String, bgImageData: Data?, audioFileName: String) {
+        self.id = id
+        self.name = name
+        self.bgImageData = bgImageData
+        self.audioFileName = audioFileName
+    }
+    
     private enum CodingKeys: String, CodingKey {
         case id
         case name

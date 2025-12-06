@@ -51,5 +51,13 @@ final class SoundList: ObservableObject {
             sounds = decoded
         }
     }
+    
+    func removeSound(at index: Int) {
+        sounds.remove(at: index)
+    }
+
+    func removeSound(_ sound: Sound) {
+        sounds.removeAll { $0.id == sound.id }
+    }
 }
 

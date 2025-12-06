@@ -2,47 +2,45 @@
 //  SoundEditorView.swift
 //  soundboard
 //
-//  Created by Jacob Germana-McCray on 12/5/25.
-//
-
 
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 import AVFoundation
-import UIKit
-import Combine
 
 struct SoundEditorView: View {
     @Environment(\.dismiss) private var dismiss
-    
-    // Callback to deliver the new sound to the parent
-    let onSave: (Sound) -> Void
-    
-    // Form data
+
+    // Input
+    let soundToEdit: Sound?           // nil = create new, non-nil = edit existing
+    let onSave: (Sound) -> Void       // called with updated or new Sound
+
+    // Form state
     @State private var name: String = ""
     @State private var imageData: Data?
     @State private var previewImage: Image?
-    
-    // Pickers
+
     @State private var imageSelection: PhotosPickerItem?
     @State private var showCamera = false
     @State private var showFileImporter = false
     @State private var showRecorder = false
-    
+
     @State private var localAudioURL: URL?
-    
+
     @StateObject private var recorder = AudioRecorder()
-    
+
+    private var isEditing: Bool { soundToEdit != nil }
+
     var body: some View {
         NavigationStack {
             Form {
-                
+                // MARK: - Name
                 Section("Name") {
                     TextField("Sound name", text: $name)
                         .textInputAutocapitalization(.words)
                 }
-                
+
+                // MARK: - Image
                 Section("Image") {
                     VStack {
                         HStack {
@@ -50,10 +48,9 @@ struct SoundEditorView: View {
                             if let img = previewImage {
                                 img
                                     .resizable()
+                                    .scaledToFill()
                                     .frame(width: 180, height: 180)
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .scaledToFill()
-                                    .padding()
                             } else {
                                 Image(systemName: "photo.badge.plus")
                                     .font(.system(size: 60))
@@ -62,29 +59,29 @@ struct SoundEditorView: View {
                             }
                             Spacer()
                         }
-                        
-                        
-                        HStack {
-                            Spacer()
+
+                        HStack(spacing: 20) {
                             PhotosPicker(selection: $imageSelection, matching: .images) {
                                 Label("Photos", systemImage: "photo.on.rectangle")
                             }
                             .buttonStyle(.bordered)
-                            
+
                             Button {
                                 showCamera = true
                             } label: {
                                 Label("Camera", systemImage: "camera")
                             }
                             .buttonStyle(.bordered)
-                            Spacer()
                         }
+                        .padding(.top, 8)
                     }
                 }
+
+                // MARK: - Audio
                 Section("Audio") {
-                    if let localAudioURL {
+                    if let url = localAudioURL {
                         Label {
-                            Text(localAudioURL.deletingPathExtension().lastPathComponent)
+                            Text(url.deletingPathExtension().lastPathComponent)
                                 .lineLimit(1)
                         } icon: {
                             Image(systemName: "checkmark.circle.fill")
@@ -94,15 +91,15 @@ struct SoundEditorView: View {
                         Text("No audio selected")
                             .foregroundStyle(.secondary)
                     }
-                    
-                    HStack {
+
+                    HStack(spacing: 20) {
                         Button {
                             showFileImporter = true
                         } label: {
                             Label("Files", systemImage: "folder")
                         }
                         .buttonStyle(.bordered)
-                        
+
                         Button {
                             showRecorder = true
                         } label: {
@@ -113,29 +110,33 @@ struct SoundEditorView: View {
                     }
                 }
             }
-            .navigationTitle("New Sound")
+            .navigationTitle(isEditing ? "Edit Sound" : "New Sound")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", role: .cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveAndDismiss() }
-                        .bold()
-                        .disabled(!canSave)
+                    Button("Save") {
+                        saveAndDismiss()
+                    }
+                    .bold()
+                    .disabled(!canSave)
                 }
             }
+            // MARK: - Sheets & Importers
             .sheet(isPresented: $showCamera) {
                 CameraView { uiImage in
-                    if let data = uiImage.jpegData(compressionQuality: 0.85) {
-                        imageData = data
-                        previewImage = Image(uiImage: uiImage)
-                    }
+                    guard let data = uiImage.jpegData(compressionQuality: 0.85) else { return }
+                    imageData = data
+                    previewImage = Image(uiImage: uiImage)
                 }
             }
-            .fileImporter(isPresented: $showFileImporter,
-                          allowedContentTypes: [.audio],
-                          allowsMultipleSelection: false) { result in
+            .fileImporter(
+                isPresented: $showFileImporter,
+                allowedContentTypes: [.audio],
+                allowsMultipleSelection: false
+            ) { result in
                 handleFileImport(result)
             }
             .sheet(isPresented: $showRecorder) {
@@ -144,67 +145,78 @@ struct SoundEditorView: View {
                 }
                 .presentationDetents([.height(260), .medium])
             }
-            .onChange(of: imageSelection) { oldItem, newItem in
-                guard let newItem else {
-                    previewImage = nil
-                    imageData = nil
-                    return
-                }
+            .onChange(of: imageSelection) { _, newItem in
                 Task {
-                    if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let uiImage = UIImage(data: data) {
-                        await MainActor.run {
-                            previewImage = Image(uiImage: uiImage)
-                            imageData = data
-                        }
+                    guard let newItem,
+                          let data = try? await newItem.loadTransferable(type: Data.self),
+                          let uiImage = UIImage(data: data)
+                    else { return }
+
+                    await MainActor.run {
+                        self.imageData = data
+                        self.previewImage = Image(uiImage: uiImage)
                     }
+                }
+            }
+            // MARK: - Populate fields when editing
+            .onAppear {
+                guard isEditing, name.isEmpty else { return }
+
+                name = soundToEdit?.name ?? ""
+                imageData = soundToEdit?.bgImageData
+                if let data = soundToEdit?.bgImageData,
+                   let uiImage = UIImage(data: data) {
+                    previewImage = Image(uiImage: uiImage)
+                }
+
+                // Reconstruct audio URL from stored filename
+                if let fileName = soundToEdit?.audioFileName {
+                    let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    localAudioURL = docsURL.appendingPathComponent(fileName)
                 }
             }
         }
     }
-    
-    var canSave: Bool {
+
+    // MARK: - Helpers
+
+    private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         localAudioURL != nil
     }
-    
-    func handleFileImport(_ result: Result<[URL], Error>) {
+
+    private func handleFileImport(_ result: Result<[URL], Error>) {
         guard let url = try? result.get().first else { return }
-        
-        do {
-            let copiedURL = try copyToDocumentsWithUUID(url: url)
-            localAudioURL = copiedURL
-        } catch {
-            print("Failed to copy audio file: \(error)")
-        }
+
+        let copiedURL = copyToDocumentsWithUUID(url: url)
+        localAudioURL = copiedURL
     }
-        
-    func copyToDocumentsWithUUID(url: URL) throws -> URL {
+
+    private func copyToDocumentsWithUUID(url: URL) -> URL {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        
+
         let fm = FileManager.default
         let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let ext = url.pathExtension.lowercased()
         let newName = UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)")
         let destination = docs.appendingPathComponent(newName)
-        
-        // Remove any previous temp file if exists (safe)
+
         try? fm.removeItem(at: destination)
-        try fm.copyItem(at: url, to: destination)
+        try? fm.copyItem(at: url, to: destination)
         return destination
     }
-        
-    
-    func saveAndDismiss() {
+
+    private func saveAndDismiss() {
         guard let audioURL = localAudioURL else { return }
-        
+
         let sound = Sound(
+            id: soundToEdit?.id ?? UUID(), // preserve ID when editing
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             bgImageData: imageData,
             audioFileName: audioURL.lastPathComponent
         )
-        
+
         onSave(sound)
         dismiss()
     }
