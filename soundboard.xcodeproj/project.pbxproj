@@ -10,9 +10,22 @@
 		16C846572EE3CB6400465328 /* soundboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = soundboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		16C846742EE5023A00465328 /* Exceptions for "soundboard" folder in "soundboard" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 16C846562EE3CB6400465328 /* soundboard */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		16C846592EE3CB6400465328 /* soundboard */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				16C846742EE5023A00465328 /* Exceptions for "soundboard" folder in "soundboard" target */,
+			);
 			path = soundboard;
 			sourceTree = "<group>";
 		};
@@ -257,8 +270,10 @@
 				DEVELOPMENT_TEAM = JNVX4T2527;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = soundboard/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Soundboard;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Using your microphone to record a sound for a soundboard button.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -292,8 +307,10 @@
 				DEVELOPMENT_TEAM = JNVX4T2527;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = soundboard/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Soundboard;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Using your microphone to record a sound for a soundboard button.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

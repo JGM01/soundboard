@@ -27,32 +27,36 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             if sounds.sounds.isEmpty {
-                VStack(spacing: 20) {
-                    Image(systemName: "waveform.slash")
-                        .font(.system(size: 64))
-                        .foregroundStyle(.secondary)
-                    
-                    Text("No sounds")
-                        .font(.title2.bold())
-                    
+                
+                ContentUnavailableView {
+                    Label("No sounds", systemImage: "waveform.slash")
+
+                } description: {
                     Text("You don't have any saved sounds yet.")
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    
+                } actions: {
                     Button {
+                        soundToEdit = nil
                         showingEditor = true
                     } label: {
                         Image(systemName: "plus")
-                            .font(.title)
                             .fontWeight(.semibold)
+                            .font(.largeTitle)
                             
                     }
                     .buttonStyle(.glassProminent)
                     .controlSize(.large)
                     .buttonBorderShape(.circle)
                 }
-                .padding()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .sheet(isPresented: $showingEditor) {
+                    SoundEditorView(soundToEdit: soundToEdit) { savedSound in
+                        if let index = sounds.sounds.firstIndex(where: { $0.id == savedSound.id }) {
+                            sounds.sounds[index] = savedSound
+                        } else {
+                            sounds.sounds.append(savedSound)
+                        }
+                        soundToEdit = nil
+                    }
+                }
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns) {
@@ -62,20 +66,6 @@ struct ContentView: View {
                     }
                     .padding()
                 }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            soundToEdit = nil
-                            showingEditor = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .fontWeight(.semibold)
-                        }
-                        .accessibilityLabel("Add sound")
-                    }
-                }
-
-                // THE FIXED SHEET — no NavigationStack, no if/else
                 .sheet(isPresented: $showingEditor) {
                     SoundEditorView(soundToEdit: soundToEdit) { savedSound in
                         if let index = sounds.sounds.firstIndex(where: { $0.id == savedSound.id }) {
@@ -83,6 +73,20 @@ struct ContentView: View {
                         } else {
                             sounds.sounds.append(savedSound)
                         }
+                        soundToEdit = nil
+                    }
+                }
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            soundToEdit = nil
+                            showingEditor = true
+                        } label: {
+                            
+                            Image(systemName: "plus")
+                                .fontWeight(.semibold)
+                        }
+                        .accessibilityLabel("Add sound")
                     }
                 }
             }
@@ -130,7 +134,7 @@ struct ContentView: View {
 
                 Text(sound.name)
                     .font(.caption)
-                    .foregroundStyle(.black)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .lineLimit(1)
             }
@@ -198,10 +202,6 @@ struct ContentView: View {
                     .font(.headline).bold()
             }
             .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 36)
-                    .fill(.ultraThinMaterial)
-            )
         }
     }
 }
@@ -223,4 +223,5 @@ struct PressableEmissiveButtonStyle: ButtonStyle {
 
 #Preview {
     ContentView()
+        .preferredColorScheme(.light)
 }

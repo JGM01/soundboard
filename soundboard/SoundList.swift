@@ -14,6 +14,7 @@ final class SoundList: ObservableObject {
     @Published var sounds: [Sound] = [] {
         didSet { save() }
     }
+    
 
     private var player: AVAudioPlayer?
 
