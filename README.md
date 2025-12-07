@@ -8,5 +8,9 @@
 
 The intent behind this app is that I kept hearing that funny "FAHHH" sound effect on youtube and I wanted to have the ability to use it similarly. This accomplishes that goal by letting me take mp3s, save to some local spot, and let me spam it over and over via a button. I also added the ability to record sounds in case that is necessary.
 
+---
+
 <img width="512" height="600" alt="image" src="https://github.com/user-attachments/assets/22bbfdc5-22e6-46d0-b866-9c68585b1d5b" />
+
+I want to make it so you can share sounds via airdrop or something (or over text), which seems easy enough. The **Share** button currently doesn't do anything.
 
