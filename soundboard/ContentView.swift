@@ -14,7 +14,7 @@ import Combine
 
 struct ContentView: View {
     @State private var showingEditor = false
-    @State private var editingSound: Sound?
+    @State private var soundToEdit: Sound?
 
     @StateObject private var sounds = SoundList()
 
@@ -27,30 +27,45 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             if sounds.sounds.isEmpty {
-                ContentUnavailableView {
-                    Label("No sounds", systemImage: "waveform.slash")
-                } description: {
+                VStack(spacing: 20) {
+                    Image(systemName: "waveform.slash")
+                        .font(.system(size: 64))
+                        .foregroundStyle(.secondary)
+                    
+                    Text("No sounds")
+                        .font(.title2.bold())
+                    
                     Text("You don't have any saved sounds yet.")
-                } actions: {
-                    Button("Save sound") {
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    
+                    Button {
                         showingEditor = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
+                    .buttonBorderShape(.circle)
                 }
+                .padding()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns) {
                         ForEach(sounds.sounds.indices, id: \.self) { index in
                             soundButton(at: index)
-                                .shadow(radius: 4)
                         }
                     }
                     .padding()
                 }
                 .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
-                            editingSound = nil
+                            soundToEdit = nil
                             showingEditor = true
                         } label: {
                             Image(systemName: "plus")
@@ -59,27 +74,14 @@ struct ContentView: View {
                         .accessibilityLabel("Add sound")
                     }
                 }
+
+                // THE FIXED SHEET — no NavigationStack, no if/else
                 .sheet(isPresented: $showingEditor) {
-                    NavigationStack {
-                        if let sound = editingSound {
-                            SoundEditorView(
-                                soundToEdit: sound
-                            ) { updatedSound in
-                                if let idx = sounds.sounds.firstIndex(where: { $0.id == updatedSound.id }) {
-                                    withAnimation {
-                                        sounds.sounds[idx] = updatedSound
-                                    }
-                                }
-                                editingSound = nil
-                            }
+                    SoundEditorView(soundToEdit: soundToEdit) { savedSound in
+                        if let index = sounds.sounds.firstIndex(where: { $0.id == savedSound.id }) {
+                            sounds.sounds[index] = savedSound
                         } else {
-                            SoundEditorView(
-                                soundToEdit: nil
-                            ) { newSound in
-                                withAnimation {
-                                    sounds.sounds.append(newSound)
-                                }
-                            }
+                            sounds.sounds.append(savedSound)
                         }
                     }
                 }
@@ -92,15 +94,39 @@ struct ContentView: View {
         let sound = sounds.sounds[index]
 
         Button {
-            // Short tap = play sound
             sounds.play(sound)
         } label: {
             VStack {
-                sound.displayImage
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 96, height: 96)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                ZStack {
+                    Circle()
+                        .fill(sound.color.gradient)
+                        .frame(width: 96, height: 96)
+                        .overlay(
+                            // inset shadow
+                            Circle()
+                                .strokeBorder(
+                                    sound.color.mix(with: .black, by: 0.3),
+                                    lineWidth: 12
+                                )
+                                .blur(radius: 4)
+                                .offset(x: 4, y: 4)
+                                .mask(Circle().fill(.black)) // cuts it to inner edge only
+                                .blendMode(.multiply)
+                        )
+                        .overlay(
+                            // inner highlight
+                            Circle()
+                                .strokeBorder(sound.color.mix(with: .white, by: 0.5), lineWidth: 12)
+                                .blur(radius: 4)
+                                .offset(x: -2, y: -2)
+                                .mask(Circle().fill(.black))
+                                .blendMode(.lighten)
+                        )
+                        .clipShape(Circle())
+                               
+
+                }
+                .frame(width: 96, height: 96)
 
                 Text(sound.name)
                     .font(.caption)
@@ -110,11 +136,12 @@ struct ContentView: View {
             }
             
         }
+        .buttonStyle(PressableEmissiveButtonStyle())
         // Long-press context menu
         .contextMenu {
             Button {
                 // update state and present sheet
-                editingSound = sound
+                soundToEdit = sound
                 DispatchQueue.main.async {
                     showingEditor = true
                 }
@@ -135,21 +162,62 @@ struct ContentView: View {
                 Label("Delete", systemImage: "trash")
             }
         } preview: {
-            ZStack {
-                sound.displayImage
-                    .resizable()
-                    .frame(width: 200, height: 200)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .scaledToFill()
+            VStack {
+                ZStack {
+                    Circle()
+                        .fill(sound.color.gradient)
+                        .frame(width: 96, height: 96)
+                        .overlay(
+                            // inset shadow
+                            Circle()
+                                .strokeBorder(
+                                    sound.color.mix(with: .black, by: 0.3),
+                                    lineWidth: 12
+                                )
+                                .blur(radius: 4)
+                                .offset(x: 4, y: 4)
+                                .mask(Circle().fill(.black)) // cuts it to inner edge only
+                                .blendMode(.multiply)
+                        )
+                        .overlay(
+                            // inner highlight
+                            Circle()
+                                .strokeBorder(sound.color.mix(with: .white, by: 0.5), lineWidth: 12)
+                                .blur(radius: 4)
+                                .offset(x: -2, y: -2)
+                                .mask(Circle().fill(.black))
+                                .blendMode(.lighten)
+                        )
+                        .clipShape(Circle())
+                               
 
-                VStack {
-                    Spacer()
-                    Text(sound.name)
-                        .font(.title).bold()
-                        .padding()
                 }
+                .frame(width: 96, height: 96)
+
+                Text(sound.name)
+                    .font(.headline).bold()
             }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 36)
+                    .fill(.ultraThinMaterial)
+            )
         }
+    }
+}
+
+struct PressableEmissiveButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .offset(y: configuration.isPressed ? 3 : 0)
+            .overlay(
+                Circle()
+                    .fill(.white.opacity(configuration.isPressed ? 0.6 : 0))
+                    .blur(radius: configuration.isPressed ? 22 : 0)
+                    .scaleEffect(configuration.isPressed ? 1.2 : 0.8)
+            )
+            .animation(.snappy(duration: 0.12), value: configuration.isPressed)
     }
 }
 

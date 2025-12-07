@@ -17,11 +17,8 @@ struct SoundEditorView: View {
 
     // Form state
     @State private var name: String = ""
-    @State private var imageData: Data?
-    @State private var previewImage: Image?
+    @State private var color: Color = .red
 
-    @State private var imageSelection: PhotosPickerItem?
-    @State private var showCamera = false
     @State private var showFileImporter = false
     @State private var showRecorder = false
 
@@ -33,83 +30,90 @@ struct SoundEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // MARK: - Name
-                Section("Name") {
+            List {
+                Section {
                     TextField("Sound name", text: $name)
+                        .textFieldStyle(.plain)
                         .textInputAutocapitalization(.words)
-                }
-
-                // MARK: - Image
-                Section("Image") {
+                        .multilineTextAlignment(.center)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                        .padding()
+                    
+                    VStack {
+                        ColorPicker(
+                            selection: $color,
+                            supportsOpacity: false,
+                            label: {
+                                Text("Button Color")
+                            }
+                        )
+                        .padding()
+                        .background(.regularMaterial)
+                        .clipShape(.capsule)
+                    }
+                    .padding()
+                    
                     VStack {
                         HStack {
                             Spacer()
-                            if let img = previewImage {
-                                img
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 180, height: 180)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                            if let url = localAudioURL {
+                                HStack {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(.green)
+                                        .font(.title)
+                                    Spacer()
+                                    Text(url.deletingPathExtension().lastPathComponent)
+                                        .lineLimit(1)
+                                }
                             } else {
-                                Image(systemName: "photo.badge.plus")
-                                    .font(.system(size: 60))
+                                Text("No audio selected")
                                     .foregroundStyle(.secondary)
-                                    .frame(height: 180)
                             }
                             Spacer()
                         }
+                        .padding()
+                        
 
-                        HStack(spacing: 20) {
-                            PhotosPicker(selection: $imageSelection, matching: .images) {
-                                Label("Photos", systemImage: "photo.on.rectangle")
-                            }
-                            .buttonStyle(.bordered)
-
+                        HStack {
                             Button {
-                                showCamera = true
+                                showFileImporter = true
                             } label: {
-                                Label("Camera", systemImage: "camera")
+                                Label(title: {
+                                    Text("Select")
+                                }, icon: {
+                                    Image(systemName: "folder")
+                                        .foregroundStyle(.primary)
+                                })
                             }
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.glassProminent)
+                            .buttonBorderShape(.capsule)
+
+                            Spacer()
+                            
+                            Button(role: .destructive) {
+                                showRecorder = true
+                            } label: {
+                                Label(title: {
+                                    Text("Record")
+                                }, icon: {
+                                    Image(systemName: "mic")
+                                        .foregroundStyle(.primary)
+                                })
+                            }
+                            .buttonStyle(.glassProminent)
+                            .buttonBorderShape(.capsule)
                         }
-                        .padding(.top, 8)
+                        .padding()
                     }
+ 
                 }
-
-                // MARK: - Audio
-                Section("Audio") {
-                    if let url = localAudioURL {
-                        Label {
-                            Text(url.deletingPathExtension().lastPathComponent)
-                                .lineLimit(1)
-                        } icon: {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                        }
-                    } else {
-                        Text("No audio selected")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    HStack(spacing: 20) {
-                        Button {
-                            showFileImporter = true
-                        } label: {
-                            Label("Files", systemImage: "folder")
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            showRecorder = true
-                        } label: {
-                            Label("Record", systemImage: "mic")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
+            .padding()
+            .listStyle(.plain)
             .navigationTitle(isEditing ? "Edit Sound" : "New Sound")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -122,14 +126,6 @@ struct SoundEditorView: View {
                     }
                     .bold()
                     .disabled(!canSave)
-                }
-            }
-            // MARK: - Sheets & Importers
-            .sheet(isPresented: $showCamera) {
-                CameraView { uiImage in
-                    guard let data = uiImage.jpegData(compressionQuality: 0.85) else { return }
-                    imageData = data
-                    previewImage = Image(uiImage: uiImage)
                 }
             }
             .fileImporter(
@@ -145,29 +141,12 @@ struct SoundEditorView: View {
                 }
                 .presentationDetents([.height(260), .medium])
             }
-            .onChange(of: imageSelection) { _, newItem in
-                Task {
-                    guard let newItem,
-                          let data = try? await newItem.loadTransferable(type: Data.self),
-                          let uiImage = UIImage(data: data)
-                    else { return }
-
-                    await MainActor.run {
-                        self.imageData = data
-                        self.previewImage = Image(uiImage: uiImage)
-                    }
-                }
-            }
             // MARK: - Populate fields when editing
             .onAppear {
                 guard isEditing, name.isEmpty else { return }
 
                 name = soundToEdit?.name ?? ""
-                imageData = soundToEdit?.bgImageData
-                if let data = soundToEdit?.bgImageData,
-                   let uiImage = UIImage(data: data) {
-                    previewImage = Image(uiImage: uiImage)
-                }
+                color = soundToEdit?.color ?? .red
 
                 // Reconstruct audio URL from stored filename
                 if let fileName = soundToEdit?.audioFileName {
@@ -213,11 +192,32 @@ struct SoundEditorView: View {
         let sound = Sound(
             id: soundToEdit?.id ?? UUID(), // preserve ID when editing
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            bgImageData: imageData,
+            color: color,
             audioFileName: audioURL.lastPathComponent
         )
 
         onSave(sound)
         dismiss()
     }
+}
+
+#Preview("Creating New Sound") {
+    SoundEditorView(soundToEdit: nil) { sound in
+        print("Created:", sound.name)
+    }
+}
+
+#Preview("Editing Existing Sound") {
+    SoundEditorView(soundToEdit: Sound(
+        name: "Laugh Track",
+        color: .yellow,
+        audioFileName: "laugh.m4a"
+    )) { sound in
+        print("Edited:", sound.name)
+    }
+}
+
+#Preview("New Sound – Dark Mode") {
+    SoundEditorView(soundToEdit: nil) { _ in }
+        .preferredColorScheme(.dark)
 }
