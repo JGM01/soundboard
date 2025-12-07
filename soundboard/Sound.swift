@@ -6,12 +6,40 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
 
-struct Sound: Codable, Equatable, Identifiable {
+extension UTType {
+    static let soundboard = UTType(exportedAs: "com.jgm01.soundboard.sound")
+}
+
+struct Sound: Codable, Equatable, Identifiable, Transferable {
+
     var id = UUID()
     let name: String
     let color: Color
     let audioFileName: String
+    
+    static var transferRepresentation: some TransferRepresentation {
+        // 1. Share as a pretty JSON file (e.g. "My Sound.soundboard")
+        FileRepresentation(contentType: .soundboard) { sound in
+            // Encode the Sound metadata to JSON
+            let encoder = JSONEncoder()
+            let data = try encoder.encode(sound)
+            
+            // Temporary URL for the JSON file
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(sound.name)
+                .appendingPathExtension("soundboard")
+            try data.write(to: tempURL)
+            return SentTransferredFile(tempURL)
+        } importing: { received in
+            let data = try Data(contentsOf: received.file)
+            return try JSONDecoder().decode(Sound.self, from: data)
+        }
+
+        // 2. Also include the actual audio file so the receiver gets the sound
+        ProxyRepresentation(exporting: \.audioURL)
+    }
     
     // MARK: - Codable Keys
     private enum CodingKeys: String, CodingKey {
@@ -65,3 +93,4 @@ struct Sound: Codable, Equatable, Identifiable {
             .appendingPathComponent(audioFileName)
     }
 }
+

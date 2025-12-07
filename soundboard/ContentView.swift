@@ -153,9 +153,8 @@ struct ContentView: View {
                 Label("Edit", systemImage: "pencil")
             }
 
-            Button {
-            } label: {
-                Label("Share", systemImage: "square.and.arrow.up")
+            ShareLink(item: sound.audioURL, preview: SharePreview(sound.name, image: Image(systemName: "waveform"))) {
+                Label("Share Audio", systemImage: "square.and.arrow.up")
             }
 
             Button(role: .destructive) {
