@@ -14,3 +14,9 @@ The intent behind this app is that I kept hearing that funny "FAHHH" sound effec
 
 I want to make it so you can share sounds via airdrop or something (or over text), which seems easy enough. The **Share** button currently doesn't do anything.
 
+On that note, I want to enhance with:
+1. Sharing
+2. Play sound in edit view
+3. "Better" UI (maybe something realistic looking with shaders for lighting)
+
+Idk how performance enhancements would work in SwiftUI since it's so abstracted but I would like to look into stuff like that. Not in a "bit-hacking" "optimization^tm" way but like in a rerenders/reducing instructions per frame way. 
